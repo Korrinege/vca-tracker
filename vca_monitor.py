@@ -24,14 +24,18 @@ import time
 import urllib.request
 from datetime import datetime
 from email.message import EmailMessage
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse
 
 from playwright.sync_api import sync_playwright
 
-# ================= 配置 =================
+# ================= 配置（换商品只需要改这一段）=================
 PRODUCT_URL = ("https://www.vancleefarpels.com/us/en/collections/jewelry/alhambra/"
                "vcard35600---vintage-alhambra-bracelet-5-motifs.html")
 PRODUCT_NAME = "Vintage Alhambra bracelet, 5 motifs – 18K yellow gold, Tiger Eye (VCARD35600)"
+
+# 有货 / 没货时页面上按钮的文字（不分大小写）。Van Cleef 英文站不用改
+IN_STOCK_TEXT = "add to bag"
+OUT_OF_STOCK_TEXT = "order by phone"
 
 # 收件邮箱也从环境变量读，放到 public repo 里不会暴露；没设置的话默认发给 GMAIL_USER 自己
 TO_EMAIL = os.environ.get("TO_EMAIL") or os.environ.get("GMAIL_USER", "")
@@ -58,8 +62,14 @@ UNKNOWN_ALERT_AFTER = 3    # 连续几次检测失败，就发一封"监控可�
 # ========================================
 
 IN_STOCK, OUT_OF_STOCK, UNKNOWN = "IN_STOCK", "OUT_OF_STOCK", "UNKNOWN"
-ADD_RE = re.compile(r"^\s*add to bag\s*$", re.I)
-PHONE_RE = re.compile(r"^\s*order by phone\s*$", re.I)
+def _button_re(text):
+    """按钮文字整段匹配，不分大小写，单词之间的空格/换行数量不限"""
+    words = r"\s+".join(re.escape(w) for w in text.split())
+    return re.compile(r"^\s*" + words + r"\s*$", re.I)
+
+
+ADD_RE = _button_re(IN_STOCK_TEXT)
+PHONE_RE = _button_re(OUT_OF_STOCK_TEXT)
 
 
 def log(msg):
@@ -91,7 +101,8 @@ def check_stock():
         page = context.new_page()
         try:
             page.goto(PRODUCT_URL, wait_until="domcontentloaded", timeout=60_000)
-            if "/us/en/" not in page.url:
+            # 如果被跳转到了别的页面（比如别的地区站或首页），在 log 里提示一下
+            if urlparse(page.url).path.rstrip("/") != urlparse(PRODUCT_URL).path.rstrip("/"):
                 log(f"⚠️ 页面被跳转到了：{page.url}")
 
             add_btn = page.get_by_text(ADD_RE)
