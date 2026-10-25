@@ -1,20 +1,23 @@
 name: VCA restock check
 
 on:
-  schedule:
-    # 每 10 分钟一次（UTC）。避开整点，整点是 GitHub 最拥堵、最容易延迟的时候
-    - cron: "3,13,23,33,43,53 * * * *"
-  workflow_dispatch: # 允许在 Actions 页面手动点 "Run workflow" 测试
+  workflow_dispatch:
     inputs:
       test_email:
-        description: "只发测试提醒：测试邮件 + 手机测试警报（不检查库存）"
+        description: "只发测试邮件和手机警报，不检查库存"
         type: boolean
         default: false
 
 jobs:
   check:
+    name: Check ${{ matrix.region }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
+
+    strategy:
+      fail-fast: false
+      matrix:
+        region: [gb, hk]
 
     steps:
       - uses: actions/checkout@v5
@@ -30,18 +33,24 @@ jobs:
 
       - name: Check stock
         env:
+          VCA_REGION: ${{ matrix.region }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           BARK_KEY: ${{ secrets.BARK_KEY }}
-        run: python vca_monitor.py ${{ inputs.test_email && '--test-email' || '--once' }}
+          TEST_EMAIL: ${{ inputs.test_email }}
+        run: |
+          if [ "$TEST_EMAIL" = "true" ]; then
+            python vca_monitor.py --test-email
+          else
+            python vca_monitor.py --once
+          fi
 
-      # 检测失败时把页面截图存下来，方便看是不是被网站拦了
       - name: Upload screenshot on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: unknown-screenshot
+          name: unknown-screenshot-${{ matrix.region }}
           path: vca_last_unknown.png
           retention-days: 3
           if-no-files-found: ignore
