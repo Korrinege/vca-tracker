@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        region: [gb, hk, cn]
+        region: [gb, hk]
 
     steps:
       - uses: actions/checkout@v5
