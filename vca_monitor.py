@@ -177,9 +177,7 @@ def send_bark(title, body):
         log("（没有设置 BARK_KEY，跳过手机警报）")
         return False
     params = urlencode({
-        "level": "critical",   # 重要警告：静音、勿扰、睡眠模式下也会响
-        "volume": "10",        # 重要警告的音量（0-10）
-        "call": "1",           # 铃声重复播放 30 秒
+        "level": "active",   # 重要警告：静音、勿扰、睡眠模式下也会响
         "url": PRODUCT_URL,    # 点通知直接打开商品页
         "group": "VCA",
     })
