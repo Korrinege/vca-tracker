@@ -29,9 +29,21 @@ from urllib.parse import quote, urlencode, urlparse
 from playwright.sync_api import sync_playwright
 
 # ================= 配置（换商品只需要改这一段）=================
-PRODUCT_URL = ("https://www.vancleefarpels.com/us/en/collections/jewelry/alhambra/"
-               "vcard35600---vintage-alhambra-bracelet-5-motifs.html")
-PRODUCT_NAME = "Vintage Alhambra bracelet, 5 motifs – 18K yellow gold, Tiger Eye (VCARD35600)"
+REGION = os.environ.get("VCA_REGION", "gb").lower()
+
+if REGION not in ("gb", "hk"):
+    raise ValueError("VCA_REGION 必须是 gb 或 hk")
+
+REGION_NAME = {"gb": "英国", "hk": "香港"}[REGION]
+
+PRODUCT_URL = (
+    f"https://www.vancleefarpels.com/{REGION}/en/collections/jewelry/alhambra/"
+    "vcard35600---vintage-alhambra-bracelet-5-motifs.html"
+)
+
+PRODUCT_NAME = (
+    f"【{REGION_NAME}】虎眼石 Vintage Alhambra 五花手链 VCARD35600"
+)
 
 # 有货 / 没货时页面上按钮的文字（不分大小写）。Van Cleef 英文站不用改
 IN_STOCK_TEXT = "add to bag"
@@ -160,6 +172,7 @@ def send_email(subject, body, screenshot=None):
 
 def send_bark(title, body):
     """通过 Bark 给 iPhone 推送"重要警告"：无视静音和专注/睡眠模式，铃声连响 30 秒"""
+    title = f"【{REGION_NAME}】{title}"
     if not BARK_KEY:
         log("（没有设置 BARK_KEY，跳过手机警报）")
         return False
