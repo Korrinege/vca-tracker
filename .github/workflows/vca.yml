@@ -8,11 +8,19 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   check:
     name: Check ${{ matrix.region }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
+
+    # Browsers and Linux dependencies are already included.
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.64.1-noble
+      options: --init --ipc=host
 
     strategy:
       fail-fast: false
@@ -22,14 +30,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+      # The Python package must match the container's browser version.
+      - name: Install matching Playwright package
+        run: python -m pip install --disable-pip-version-check --retries 5 --timeout 30 playwright==1.64.1
 
-      - name: Install Playwright + Chromium
+      - name: Verify Chromium can launch
         run: |
-          pip install playwright
-          python -m playwright install --with-deps chromium
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              print("Chromium ready:", browser.version)
+              browser.close()
+          PY
 
       - name: Check stock
         env:
